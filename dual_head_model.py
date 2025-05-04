@@ -10,8 +10,8 @@ from transformers import Qwen3ForCausalLM, Qwen3Config
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from typing import Optional, List, Tuple, Union, Dict
 
-# Import config
-import config
+# Import config explicitly to avoid name collision
+import config as project_config
 
 # Constants (now primarily from config)
 # MIMI_CODEBOOK_SIZE = 2048 # Defined in config.py
@@ -23,12 +23,17 @@ class Qwen3ForCausalLMWithMimiHead(Qwen3ForCausalLM):
     def __init__(self, config: Qwen3Config):
         super().__init__(config)
 
-        # Use codebook size from config
-        mimi_codebook_size = config.model_config.get("MIMI_CODEBOOK_SIZE", 2048) # Default if not found
+        # Use codebook size from project_config
+        mimi_codebook_size = project_config.model_config.get("MIMI_CODEBOOK_SIZE", 2048) # Use project_config
 
         # Add the new head for Mimi code prediction
         # It takes the hidden states from the Qwen model and projects them to the Mimi codebook size.
         self.mimi_code_head = nn.Linear(config.hidden_size, mimi_codebook_size, bias=False)
+
+        # Store loss weights from project_config for use in forward pass
+        self.loss_weight_text = project_config.loss_config.get("loss_weight_text", 1.0)
+        self.loss_weight_mimi = project_config.loss_config.get("loss_weight_mimi", 1.0)
+        self.mimi_codebook_size_for_loss = mimi_codebook_size # Store for loss calculation
 
         # Initialize weights for the new head (optional but often recommended)
         # self.post_init() # Call post_init to handle weight initialization potentially
@@ -47,9 +52,7 @@ class Qwen3ForCausalLMWithMimiHead(Qwen3ForCausalLM):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        # Access loss weights from config if needed, or pass via training_args potentially
-        # loss_weight_text: Optional[float] = None, # Example if passed directly
-        # loss_weight_mimi: Optional[float] = None,
+        # Loss weights are now accessed via self
     ) -> Union[Tuple, CausalLMOutputWithPast, Dict]: # Return type might need custom class
         """
         Forward pass that computes logits for both text and Mimi codes.
@@ -86,10 +89,10 @@ class Qwen3ForCausalLMWithMimiHead(Qwen3ForCausalLM):
         if labels is not None or mimi_labels is not None:
             loss_fct = CrossEntropyLoss()
             total_loss = 0.0
-            # Get weights from config (provide defaults)
-            loss_weight_text = config.loss_config.get("loss_weight_text", 1.0)
-            loss_weight_mimi = config.loss_config.get("loss_weight_mimi", 1.0)
-            mimi_codebook_size = config.model_config.get("MIMI_CODEBOOK_SIZE", 2048)
+            # Get weights and codebook size stored in self during init
+            loss_weight_text = self.loss_weight_text
+            loss_weight_mimi = self.loss_weight_mimi
+            mimi_codebook_size = self.mimi_codebook_size_for_loss
 
             # --- Text Loss --- 
             if labels is not None:
@@ -129,7 +132,7 @@ if __name__ == '__main__':
     from transformers import AutoTokenizer
 
     # Use the correct Qwen3 identifier from config
-    model_name = config.model_config["model_name_or_path"]
+    model_name = project_config.model_config["model_name_or_path"]
     print(f"Loading base model config: {model_name}")
     # Use Qwen3Config
     qwen_config = Qwen3Config.from_pretrained(model_name, trust_remote_code=True)
@@ -167,7 +170,7 @@ if __name__ == '__main__':
     print("\nTesting forward pass with dummy labels...")
     dummy_text_labels = inputs["input_ids"].clone()
     # Create dummy mimi labels (same shape as input_ids for this example)
-    mimi_codebook_size = config.model_config.get("MIMI_CODEBOOK_SIZE", 2048)
+    mimi_codebook_size = project_config.model_config.get("MIMI_CODEBOOK_SIZE", 2048) # Use project_config
     dummy_mimi_labels = torch.randint(0, mimi_codebook_size, dummy_text_labels.shape)
 
     with torch.no_grad(): # Still no_grad for testing print, use .train() and enable grad for actual training
