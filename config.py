@@ -5,7 +5,7 @@
 # --- Model Configuration ---
 model_config = {
     # Base model identifier (ensure this matches the intended Qwen3 version)
-    "model_name_or_path": "Qwen/Qwen3-4B",
+    "model_name_or_path": "Qwen/Qwen3-0.6B",
     # Add other model-specific args if any become necessary
     # --- Constants related to model/data structure ---
     "MIMI_CODEBOOK_SIZE": 2048, # Based on Mimi (1st quantizer)
@@ -41,7 +41,7 @@ loss_config = {
 # These settings mirror the arguments in transformers.TrainingArguments
 training_config = {
     # --- Core --- 
-    "output_dir": "./qwen3-4B-dual-head-full-run1", # Directory for checkpoints and final model
+    "output_dir": "./qwen3-0.6B-dual-head-full-run1", # Directory for checkpoints and final model
     "seed": 42, # Random seed for reproducibility
     "num_train_epochs": 3, # Number of times to iterate over the training dataset
     "per_device_train_batch_size": 8, # Batch size per GPU
@@ -59,7 +59,7 @@ training_config = {
     "save_steps": 500, # Save every 500 steps
     "save_total_limit": 2, # Keep only the last 2 checkpoints
     "report_to": ["wandb"], # Where to report metrics (e.g., "wandb", "tensorboard", "none")
-    "run_name": "qwen3-0.6B-dual-head-full-run1", # Optional name for the run (used by wandb/tensorboard)
+    "run_name": "qwen3-0.6B-dual-head", # Optional name for the run (used by wandb/tensorboard)
 
     # --- Performance & Precision --- 
     "bf16": True, # Use bfloat16 precision (good for Ampere/Hopper GPUs like H100)
@@ -79,6 +79,11 @@ training_config = {
     "load_best_model_at_end": True, # Load the best checkpoint based on eval metric at the end
     "metric_for_best_model": "eval_loss", # Metric to determine the best model
     "greater_is_better": False, # For loss, lower is better
+    
+    # --- Hugging Face Hub Integration --- 
+    "push_to_hub": True, # Enable pushing the model to the Hub
+    "hub_model_id": "Mazino0/qwen3-2head", # Your target repository ID
+    "hub_strategy": "end", # Strategy for pushing ("end", "checkpoint", "all_checkpoints")
     
     # Add any other TrainingArguments you might need...
 } 
