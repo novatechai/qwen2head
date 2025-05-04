@@ -74,7 +74,7 @@ training_config = {
     "mimi_pad_token_id": -100, # Padding token ID for mimi labels (ignored by loss)
     
     # --- Evaluation --- 
-    "evaluation_strategy": "steps", # Evaluate every N steps
+    "eval_strategy": "steps", # Evaluate every N steps
     "eval_steps": 500, # Evaluate every 500 steps (same as save_steps)
     "load_best_model_at_end": True, # Load the best checkpoint based on eval metric at the end
     "metric_for_best_model": "eval_loss", # Metric to determine the best model
