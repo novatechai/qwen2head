@@ -166,17 +166,20 @@ def main():
             # --- Use the explicit source_dataset_id from config --- 
             source_dataset_id = config.data_config["source_dataset_id"]
             # -------------------------------------------------------
-            print(f"Attempting to load source dataset: {source_dataset_id} with split: {split} (Streaming)")
-            # Try loading with 'name="all"' first, STREAMING ENABLED
-            ds_stream = load_dataset(source_dataset_id, name="all", split=split, trust_remote_code=True, streaming=True)
+            print(f"Attempting to load source dataset: {source_dataset_id} with split: {split} (Streaming, name='clean')")
+            # --- Directly try loading with name="clean" --- 
+            ds_stream = load_dataset(source_dataset_id, name="clean", split=split, trust_remote_code=True, streaming=True)
         except Exception as e:
-            print(f"Failed loading '{source_dataset_id}' with name='all'. Trying name='clean'. Error: {e}")
-            try:
-                # Fallback to 'name="clean"', STREAMING ENABLED
-                ds_stream = load_dataset(source_dataset_id, name="clean", split=split, trust_remote_code=True, streaming=True)
-            except Exception as e2:
-                print(f"ERROR loading dataset '{source_dataset_id}'. Error: {e2}")
-                continue # Skip to next split if loading fails
+            # If 'clean' fails, maybe try 'all' as a last resort or just error out
+            print(f"ERROR loading dataset '{source_dataset_id}' with name='clean'. Error: {e}")
+            # Optional: Uncomment to try 'all' as a fallback if 'clean' fails
+            # print(f"Trying fallback to name='all'...")
+            # try:
+            #     ds_stream = load_dataset(source_dataset_id, name="all", split=split, trust_remote_code=True, streaming=True)
+            # except Exception as e2:
+            #     print(f"ERROR loading dataset '{source_dataset_id}' with fallback name='all'. Error: {e2}")
+            #     continue # Skip to next split if loading fails
+            continue # Skip to next split if loading fails
 
         # --- Apply the mapping function to the stream --- 
         print("Generating Mimi codes from stream (will process on the fly)...")
