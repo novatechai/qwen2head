@@ -44,7 +44,8 @@ class DataCollatorForDualHeadTraining:
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         # Extract necessary fields. Convert to list first in case they are numpy arrays
         input_ids = [list(instance["input_ids"]) for instance in instances]
-        labels = [list(instance["labels"]) for instance in instances]
+        # Extract labels separately, don't pass them to tokenizer.pad initially
+        labels_list = [list(instance["labels"]) for instance in instances]
         
         # Ensure the key exists before trying to access it
         mimi_col = self.mimi_codes_column
@@ -52,17 +53,32 @@ class DataCollatorForDualHeadTraining:
              raise KeyError(f"'{mimi_col}' not found in dataset instance passed to collator. Available keys: "
                            f"{list(instances[0].keys())}")
         mimi_labels_list = [list(instance[mimi_col]) for instance in instances]
+        if len(mimi_labels_list) < len(input_ids):
+            mimi_labels_list.append([]) # Add empty list if missing, handle downstream if needed
+        # mimi_labels_list = [list(instance[mimi_col]) for instance in instances]
 
-        # Use tokenizer.pad to handle input_ids, attention_mask, and text labels padding
+        # Use tokenizer.pad ONLY for input_ids to get padding and attention mask
         batch_encoding = self.tokenizer.pad(
-            {"input_ids": input_ids, "labels": labels},
+            {"input_ids": input_ids},
             return_tensors="pt",
             padding="longest",
             return_attention_mask=True,
         )
 
-        # Manually pad the mimi_labels to the same length as the padded input_ids
+        # Determine the max_length from the padded input_ids
         max_length = batch_encoding["input_ids"].shape[1]
+
+        # Manually pad the text labels to the max_length
+        padded_labels = []
+        for label_seq in labels_list:
+            padding_length = max_length - len(label_seq)
+            padded_seq = label_seq + [self.label_pad_token_id] * padding_length
+            # Ensure sequence is not longer than max_length (due to potential truncation differences)
+            padded_seq = padded_seq[:max_length] 
+            padded_labels.append(padded_seq)
+        batch_encoding["labels"] = torch.tensor(padded_labels, dtype=torch.long)
+
+        # Manually pad the mimi_labels to the same length as the padded input_ids
         padded_mimi_labels = []
         for mimi_seq in mimi_labels_list:
             padding_length = max_length - len(mimi_seq)
