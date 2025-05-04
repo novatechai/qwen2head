@@ -84,7 +84,12 @@ def train():
     mimi_codes_column = config.data_config["mimi_codes_column"]
     
     # Instantiate TrainingArguments from the dictionary
-    training_args = TrainingArguments(**config.training_config)
+    # First, make a copy and remove keys not expected by TrainingArguments
+    training_config_dict = config.training_config.copy()
+    label_pad_token_id = training_config_dict.pop("label_pad_token_id", -100) # Remove and get value, provide default
+    mimi_pad_token_id = training_config_dict.pop("mimi_pad_token_id", -100)  # Remove and get value, provide default
+    
+    training_args = TrainingArguments(**training_config_dict) # Pass the cleaned dict
     # ------------------------------------
 
     # Set seed using the value from training_args
@@ -176,8 +181,8 @@ def train():
     # Initialize data collator
     data_collator = DataCollatorForDualHeadTraining(
         tokenizer=tokenizer,
-        label_pad_token_id=training_args.label_pad_token_id,
-        mimi_pad_token_id=training_args.mimi_pad_token_id,
+        label_pad_token_id=label_pad_token_id, # Use the stored value
+        mimi_pad_token_id=mimi_pad_token_id,   # Use the stored value
         mimi_codes_column=mimi_codes_column # Pass column name
     )
     print("Data collator initialized.")
