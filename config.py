@@ -23,7 +23,7 @@ data_config = {
     # Optional: Name of the evaluation split directory
     # "eval_split": "dev.clean", # Commented out as Elise dataset card doesn't specify dev split
     # Column containing the text to be tokenized
-    "text_column": "text_normalized",
+    "text_column": "text",
     # Column containing the target Mimi codes
     "mimi_codes_column": "target_mimi_codes",
     # Moved here from training_config
