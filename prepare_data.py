@@ -170,12 +170,12 @@ def main():
             # --- Use the explicit source_dataset_id from config --- 
             source_dataset_id = config.data_config["source_dataset_id"]
             # -------------------------------------------------------
-            print(f"Attempting to load source dataset: {source_dataset_id} with split: {split} (Streaming, name='clean')")
-            # --- Directly try loading with name="clean" --- 
-            ds_stream = load_dataset(source_dataset_id, name="clean", split=split, trust_remote_code=True, streaming=True)
+            print(f"Attempting to load source dataset: {source_dataset_id} with split: {split} (Streaming)")
+            # --- Load dataset without specifying a 'name', as Elise uses a default config with a 'train' split --- 
+            ds_stream = load_dataset(source_dataset_id, split=split, trust_remote_code=True, streaming=True)
         except Exception as e:
-            # If 'clean' fails, maybe try 'all' as a last resort or just error out
-            print(f"ERROR loading dataset '{source_dataset_id}' with name='clean'. Error: {e}")
+            # If loading fails, print error and continue
+            print(f"ERROR loading dataset '{source_dataset_id}' with split '{split}'. Error: {e}")
             # Optional: Uncomment to try 'all' as a fallback if 'clean' fails
             # print(f"Trying fallback to name='all'...")
             # try:
