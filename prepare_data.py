@@ -205,6 +205,7 @@ def main():
             mimi_col = config.data_config["mimi_codes_column"]
             for sample in stream:
                  # Ensure the required columns exist after the map function
+                print(f"DEBUG: Sample keys: {list(sample.keys())}, Expected text_col: '{text_col}', Expected mimi_col: '{mimi_col}'")
                 if text_col not in sample or mimi_col not in sample:
                     print(f"Warning: Skipping sample due to missing columns. Found keys: {list(sample.keys())}")
                     continue
