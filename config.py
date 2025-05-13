@@ -56,8 +56,8 @@ training_config = {
     "logging_strategy": "steps", # Log metrics every N steps
     "logging_steps": 10, # Log every 10 steps
     "save_strategy": "steps", # Save checkpoints every N steps
-    "save_steps": 500, # Save every 500 steps
-    "save_total_limit": 2, # Keep only the last 2 checkpoints
+    "save_steps": 190, # Save every 190 steps (approx. 10 epochs for 1195 samples, eff_batch_size 64)
+    "save_total_limit": 5, # Keep only the last 5 checkpoints
     "report_to": ["wandb"], # Where to report metrics (e.g., "wandb", "tensorboard", "none")
     "run_name": "qwen3-0.6B-dual-head", # Optional name for the run (used by wandb/tensorboard)
 
@@ -76,7 +76,7 @@ training_config = {
     # --- Evaluation --- 
     "eval_strategy": "no", # Evaluate every N steps
     "eval_steps": 500, # Evaluate every 500 steps (same as save_steps)
-    "load_best_model_at_end": True, # Load the best checkpoint based on eval metric at the end
+    "load_best_model_at_end": False, # Load the best checkpoint based on eval metric at the end
     "metric_for_best_model": "eval_loss", # Metric to determine the best model
     "greater_is_better": False, # For loss, lower is better
     
