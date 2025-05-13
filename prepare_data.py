@@ -27,7 +27,11 @@ TARGET_DATASET_NAME = os.path.basename(config.data_config["data_path"])
 MIMI_EXPECTED_SR = config.model_config["MIMI_EXPECTED_SR"]
 # ---------------------------------
 # SPLITS_TO_PROCESS = ["dev.clean"] # Define which splits to process (e.g., [config.data_config["train_split"], config.data_config["eval_split"]])
-SPLITS_TO_PROCESS = [config.data_config["train_split"], config.data_config["eval_split"]] # Process train and eval splits defined in config
+# Process train and eval splits defined in config
+SPLITS_TO_PROCESS = [config.data_config["train_split"]]
+if "eval_split" in config.data_config and config.data_config["eval_split"]:
+    SPLITS_TO_PROCESS.append(config.data_config["eval_split"])
+
 # NUM_TEST_SAMPLES = 10 # Remove this for full processing
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # OUTPUT_DIR = "./data_prepared_TEST" # Use path from config
