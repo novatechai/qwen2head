@@ -6,7 +6,7 @@
 import torch
 import torchaudio
 import transformers
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoConfig
 from huggingface_hub import hf_hub_download
 from moshi.models import loaders # For Mimi decoder
 import argparse
@@ -28,13 +28,13 @@ import config
 MODEL_PATH = config.training_config["output_dir"] # Path to the fine-tuned model directory
 TOKENIZER_PATH = config.model_config["model_name_or_path"] # Base model for tokenizer
 MIMI_EXPECTED_SR = config.model_config["MIMI_EXPECTED_SR"]
-DEFAULT_PROMPT = "Okay, let's refine the inference strategy. The current heuristic"
+DEFAULT_PROMPT = "/no_think Hi whats up?"
 OUTPUT_FILENAME = "generated_audio_refined_interleaved.wav"
 MAX_NEW_TEXT_TOKENS = 50
 CODES_PER_STEP = 4 # Number of Mimi codes per text token
 TEMPERATURE = 0.7
 TOP_K = 50
-TOP_P = None # Set to a value like 0.95 for nucleus sampling
+TOP_P = 0.95 # Set to a value like 0.95 for nucleus sampling
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # --- Helper Functions --- 
@@ -101,12 +101,32 @@ def decode_mimi_codes(decoder_model, codes_tensor: torch.Tensor, sample_rate: in
     if codes_tensor.dim() == 1: # If it's a flat list of codes [T_codes]
         codes_tensor = codes_tensor.unsqueeze(0) # Add batch dim -> [1, T_codes]
     
+    # --- Start of modification for 8 codebooks ---
+    num_expected_codebooks = 8
+    batch_size, num_codes_generated = codes_tensor.shape
+
+    # Assume the generated codes_tensor is for the first codebook
+    first_codebook = codes_tensor.unsqueeze(1).to(DEVICE)  # Shape: [B, 1, T_codes]
+
+    if num_expected_codebooks > 1:
+        # Create padding for the remaining codebooks
+        # Using 0 as a neutral padding value.
+        padding_shape = (batch_size, num_expected_codebooks - 1, num_codes_generated)
+        padding_codes = torch.zeros(padding_shape, dtype=first_codebook.dtype, device=DEVICE)
+        
+        # Concatenate the first codebook with the padding
+        codes_for_decoder = torch.cat([first_codebook, padding_codes], dim=1)
+    else:
+        # If for some reason only 1 codebook was expected, use the original logic
+        codes_for_decoder = first_codebook
+    # --- End of modification ---
+    
     # Mimi decode expects [B, K, T_codes]. We only have K=1 (1st quantizer)
     # We need to reshape/unsqueeze to [B=1, K=1, T_codes]
     # Move tensor to the correct device using the global DEVICE variable
-    codes_tensor = codes_tensor.unsqueeze(1).to(DEVICE) 
+    # codes_tensor = codes_tensor.unsqueeze(1).to(DEVICE) # This line is now replaced by the logic above
     
-    print(f"Decoding Mimi codes with shape: {codes_tensor.shape} on device {DEVICE}...")
+    print(f"Decoding Mimi codes with shape: {codes_for_decoder.shape} on device {DEVICE}...")
     with torch.no_grad():
         # TODO: Verify if mimi.decode works with only the first codebook channel.
         # It might expect all codebooks. If so, we need to pad with dummy codes
@@ -114,7 +134,7 @@ def decode_mimi_codes(decoder_model, codes_tensor: torch.Tensor, sample_rate: in
         # Assuming for now it works or we need to adapt.
         try:
             # Ensure decoder_model is used (it should already be on the correct device)
-            decoded_waveform = decoder_model.decode(codes_tensor)
+            decoded_waveform = decoder_model.decode(codes_for_decoder) # Use codes_for_decoder
             print(f"Decoded waveform shape: {decoded_waveform.shape}") # Expect [B, 1, T_audio]
             
             # --- Correction: Remove only batch dimension, keep channel --- 
@@ -181,7 +201,7 @@ def generate_interleaved(
             )
 
             # Get logits for the very last token position
-            next_token_logits = outputs.logits[:, -1, :]
+            next_token_logits = outputs['logits'][:, -1, :]
 
             # Sample the next text token
             next_text_token_id = sample_from_logits(next_token_logits, temperature=temperature, top_k=top_k, top_p=top_p)
@@ -190,7 +210,7 @@ def generate_interleaved(
             generated_text_ids = torch.cat([generated_text_ids, next_text_token_id], dim=-1)
 
             # Update past_key_values for the next step (text or mimi)
-            current_past_key_values = outputs.past_key_values
+            current_past_key_values = outputs['past_key_values']
 
             # Check for EOS token
             if next_text_token_id.item() == tokenizer.eos_token_id:
@@ -201,7 +221,7 @@ def generate_interleaved(
             step_mimi_ids = []
             # Use the hidden state that predicted the text token to predict the FIRST mimi code
             # The mimi_code_logits are calculated in the forward pass alongside text logits
-            mimi_logits_step_0 = outputs.mimi_code_logits[:, -1, :]
+            mimi_logits_step_0 = outputs['mimi_code_logits'][:, -1, :]
 
             # Sample first mimi token for this step
             current_mimi_token_id = sample_from_logits(mimi_logits_step_0, temperature=temperature, top_k=top_k, top_p=top_p)
@@ -223,8 +243,8 @@ def generate_interleaved(
                 )
 
                 # Get Mimi logits for the next position
-                next_mimi_logits = mimi_outputs.mimi_code_logits[:, -1, :]
-                mimi_past_key_values_sub = mimi_outputs.past_key_values # Update PKV *within* mimi sub-loop
+                next_mimi_logits = mimi_outputs['mimi_code_logits'][:, -1, :]
+                mimi_past_key_values_sub = mimi_outputs['past_key_values'] # Update PKV *within* mimi sub-loop
 
                 # Sample the next mimi token
                 next_mimi_token_id = sample_from_logits(next_mimi_logits, temperature=temperature, top_k=top_k, top_p=top_p)

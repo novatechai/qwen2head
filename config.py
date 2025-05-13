@@ -15,13 +15,13 @@ model_config = {
 # --- Data Configuration ---
 data_config = {
     # Path to the processed dataset folder (Update this after full data prep)
-    "data_path": "./data_prepared_FULL/libritts_mimi_codes_1quant",
+    "data_path": "./data_prepared_FULL/elise_mimi_codes_1quant",
     # Explicitly define the source Hugging Face dataset ID
-    "source_dataset_id": "mythicinfinity/libritts",
+    "source_dataset_id": "MrDragonFox/Elise",
     # Name of the training split directory (Update based on full data prep)
-    "train_split": "train.clean.360",
+    "train_split": "train",
     # Optional: Name of the evaluation split directory
-    "eval_split": "dev.clean",
+    # "eval_split": "dev.clean", # Commented out as Elise dataset card doesn't specify dev split
     # Column containing the text to be tokenized
     "text_column": "text_normalized",
     # Column containing the target Mimi codes
@@ -43,7 +43,7 @@ training_config = {
     # --- Core --- 
     "output_dir": "./qwen3-0.6B-dual-head-full-run1", # Directory for checkpoints and final model
     "seed": 42, # Random seed for reproducibility
-    "num_train_epochs": 3, # Number of times to iterate over the training dataset
+    "num_train_epochs": 50, # Number of times to iterate over the training dataset
     "per_device_train_batch_size": 8, # Batch size per GPU
     "per_device_eval_batch_size": 8, # Batch size for evaluation
     "gradient_accumulation_steps": 8, # Effective batch size = train_batch_size * num_gpus * grad_accum_steps
